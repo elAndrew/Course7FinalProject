@@ -1,0 +1,94 @@
+---
+title: "Analysis of MPG by Manual vs. Automatic"
+author: "Andrew Witherspoon"
+date: "12/12/2018"
+output: html_document
+---
+
+In this analysis we will use data extracted from the 1974 Motor Trend Magaizne to analyze fuel consumption (MPG) comparing automatic to manual transmissions.  This data set provides fuel consumption, as well as 10 other variables (aspects of design and performance) for 32 automobiles.
+
+The first question we will attempt to answer is, "is an automatic or manual transmission better for fuel consuption?"  So let's start by using just those two variables to construct a quick linear regression model, without an intercept.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+##MODEL FITTING
+```{r}
+rownames(mtcars) <- NULL
+mtcars$cyl <- factor(mtcars$cyl)
+mtcars$vs <- factor(mtcars$vs)
+mtcars$am <- factor(mtcars$am)
+fit1 <- lm(mpg ~ factor(am) -1, data = mtcars)
+summary(fit1)$coef
+```
+This initial model indicates that from out data set, cars with automatic transmissions have an average of 17 mpg, while cars with manual transmissions get an average of 24 mpg.  This isn't particularly instersting, as the type of cars that have manual transmission may be bigger heavier cars, with bigger more powerful engines.
+
+Let's do another model and include vehicle weight and engine displacement as regressor variables.
+```{r}
+fit2 <- lm(mpg ~ factor(am) + disp + wt, data = mtcars)
+summary(fit2)$coef
+````
+The results here show that when we account for engine size and vehicle weight, there is almost no discernable difference between automatic and manual transmission's affect on mpg.  A manual transmission may account for less than a .2 mpg improvement, but even that is not a statistically significant differance (note the high p-value).
+
+Following the same logic, engine power is likely a factor in mpg. Let's look at the average horsepower for automatic and manual transmissions.
+```{r}
+avgs <- aggregate(disp ~ am, mtcars, mean)
+names(avgs) <- c("Transmission (0 = automatic, 1 = manual)", "Average HP")
+avgs
+```
+So we see that autmatic transmissions are used on cars that on average, have more powerful engines.  Using horsepower as a regressor will help ensure we are measuring the mpg difference in transmission type while accounting for the difference in engine power.
+```{r}
+fit3 <- lm(mpg ~ factor(am) + hp, data = mtcars)
+summary(fit3)$coef
+````
+Now we see there is a significant difference between automatic and manual transmissions.  When accounting for engine horsepower, a manual transmission appears to get significantly better gas milage.
+
+Since vehicle weight is also highly correlated with mpg (see pairs plot in Plot Appendix), let's do one more model with both horsepower and weight as additional regressors to accompany transmission type.
+```{r}
+fit4 <- lm(mpg ~ factor(am) + hp + wt, data = mtcars)
+summary(fit4)$coef
+````
+
+##MODEL SELECTION
+```{r}
+AIC(fit1,fit2, fit3, fit4)
+```
+Model fit4 has the absolute lowest AIC, but the automatic/manual coefficient is insignificant, so even though it might work well as a prediction model, it does not do well to answer the question we are trying to answer (it relys more heavily on other variables to predict mpg).  The next best AIC is fit3, for which the transmission type coefficient is significant.
+
+Next, we will look at the Residual Plot for each model.  These are available in the Plot Appendix.  Again, we are drawn to fit3, as this model shows almost no pattern. Model fit3 will be our model.  Let's take one more look at the coefficients:
+```{r}
+summary(fit3)$coef
+```
+
+##SUMMARY / QUESTIONS ANSWERED
+*Is an automatic or manual transmission better for MPG?*
+
+Based on our chosen model, which uses horsepower as a regressor, a manual transmission is better for MPG.
+
+*Quantify the MPG difference between automatic and manual transmissions*
+
+At a given level of engine horsepower, a manual transmission is expected to have a 5 MPG improvement over an automatic transmission.
+
+
+We are working with a small sample size, and it is difficult to know if we our data is anaomolistic, or if there are some other factors in that weren't available in the data that could have provided more insight.  The estimated improvement in MPG is just that, an estimate; however, it appears a fairly safe assumption that a manual transmission does does improve fuel efficiency.
+
+
+
+##PLOT APPENDIX
+
+Pairs Plot:
+```{r, message=FALSE}
+library(GGally)
+ggpairs(mtcars[,c(1,3,4,6,9)], aes(colour = am, alpha = 0.4))
+```
+
+Reisdual Plots:
+*top left: fit1, top right, fit2, bottom left: fit3, bottom right fit4*
+```{r}
+par(mfrow = c(2,2))
+plot(fit1, which = 1)
+plot(fit2, which = 1)
+plot(fit3, which = 1)
+plot(fit4, which = 1)
+par(mfrow = c(1,1))
+```
